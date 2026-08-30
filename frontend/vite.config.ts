@@ -9,6 +9,16 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            const normalizedId = id.replaceAll('\\', '/')
+            if (normalizedId.includes('/node_modules/zrender/')) return 'zrender'
+          },
+        },
+      },
+    },
     server: {
       port: 5173,
       proxy: {
@@ -20,4 +30,3 @@ export default defineConfig(({ mode }) => {
     },
   }
 })
-

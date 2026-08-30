@@ -13,12 +13,21 @@ from app.agents.factory import registry
 from app.core.models import User, UserRole
 from app.services.analysis_scope import apply_scope_to_sql
 from app.services.chart_security import secure_chart
+from app.services.privacy import (
+    StudentAlias,
+    mask_student_aliases_in_sql,
+    restore_student_aliases_in_sql,
+    rows_for_llm,
+)
 from app.services.sql_security import SQLSafetyGate, ValidationResult, execute_scoped_query
 
 
 class QueryState(TypedDict, total=False):
     question: str
     history: list[dict[str, str]]
+    llm_question: str
+    llm_history: list[dict[str, str]]
+    student_aliases: dict[str, StudentAlias]
     catalog: dict[str, list[str]]
     user: User
     analysis_filters: dict[str, str | int]
@@ -231,8 +240,8 @@ async def schema_node(state: QueryState) -> dict[str, Any]:
         return {"schema_resolution": _fallback_schema(state)}
     prompt = json.dumps(
         {
-            "question": state["question"],
-            "recent_history": state.get("history", [])[-6:],
+            "question": state.get("llm_question", state["question"]),
+            "recent_history": state.get("llm_history", state.get("history", []))[-6:],
             "entity_catalog": state["catalog"],
             "active_analysis_scope": state.get("analysis_filters", {}),
         },
@@ -301,7 +310,7 @@ async def sql_node(state: QueryState) -> dict[str, Any]:
         return {"sql_draft": _fallback_sql(state)}
     retry_count = state.get("sql_retry_count", 0)
     payload: dict[str, Any] = {
-        "question": state["question"],
+        "question": state.get("llm_question", state["question"]),
         "schema_resolution": state["schema_resolution"].model_dump(),
         "active_analysis_scope": state.get("analysis_filters", {}),
     }
@@ -312,12 +321,21 @@ async def sql_node(state: QueryState) -> dict[str, Any]:
                     "上一次 SQL 未通过确定性安全校验。根据违规原因重新生成；"
                     "不要生成任何用户身份函数、变量或 ID 条件，权限范围由服务器注入。"
                 ),
-                "previous_sql": state["sql_draft"].sql,
+                "previous_sql": mask_student_aliases_in_sql(
+                    state["sql_draft"].sql, state.get("student_aliases", {})
+                ),
                 "validation_violations": state["validation"].violations,
             }
         )
     prompt = json.dumps(payload, ensure_ascii=False)
     result = await _structured(registry.sql_agent, prompt, SQLDraft)
+    result = result.model_copy(
+        update={
+            "sql": restore_student_aliases_in_sql(
+                result.sql, state.get("student_aliases", {})
+            )
+        }
+    )
     if _history_means_past(state["question"]):
         result = result.model_copy(update={"sql": _strip_history_subject_filter(result.sql)})
     return {"sql_draft": result, "sql_retry_count": retry_count}
@@ -361,7 +379,9 @@ async def audit_node(state: QueryState) -> dict[str, Any]:
     if registry.enabled and not _is_failure_query(state["question"]):
         prompt = json.dumps(
             {
-                "sql": state["sql_draft"].sql,
+                "sql": mask_student_aliases_in_sql(
+                    state["sql_draft"].sql, state.get("student_aliases", {})
+                ),
                 "deterministic_allowed": validation.allowed,
                 "violations": validation.violations,
             },
@@ -638,7 +658,10 @@ async def visualization_node(state: QueryState) -> dict[str, Any]:
     if not registry.enabled:
         return {"chart": secure_chart(_fallback_chart(rows, state["question"]))}
     prompt = json.dumps(
-        {"question": state["question"], "rows": rows[:100]},
+        {
+            "question": state.get("llm_question", state["question"]),
+            "rows": rows_for_llm(rows[:100], state.get("student_aliases", {})),
+        },
         ensure_ascii=False,
         default=str,
     )
@@ -709,8 +732,8 @@ async def final_node(state: QueryState) -> dict[str, Any]:
     prompt = json.dumps(
         {
             "instruction": "只根据数据形成不超过120字的中文回答，不要调用子智能体。",
-            "question": state["question"],
-            "rows": rows[:50],
+            "question": state.get("llm_question", state["question"]),
+            "rows": rows_for_llm(rows[:50], state.get("student_aliases", {})),
             "chart_type": state.get("chart", VisualizationDraft()).type,
         },
         ensure_ascii=False,

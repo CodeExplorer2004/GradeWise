@@ -20,6 +20,7 @@ from app.core.schemas import (
 from app.services.achievement_overview import build_student_achievement_overview
 from app.services.analysis_scope import validate_scope
 from app.services.conversation_memory import conversation_memory
+from app.services.privacy import build_student_aliases, redact_student_text
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -114,10 +115,18 @@ async def query(
         for item in stored_history
         if item.get("role") in {"user", "assistant"} and item.get("content")
     ]
+    student_aliases = await build_student_aliases(session, current_user.school_id)
+    llm_history = [
+        {**item, "content": redact_student_text(item["content"], student_aliases)}
+        for item in history
+    ]
     state = await query_graph.ainvoke(
         {
             "question": payload.message,
             "history": history,
+            "llm_question": redact_student_text(payload.message, student_aliases),
+            "llm_history": llm_history,
+            "student_aliases": student_aliases,
             "catalog": await _catalog(session, current_user.school_id),
             "user": current_user,
             "analysis_filters": analysis_filters,

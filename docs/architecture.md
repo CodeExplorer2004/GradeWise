@@ -38,6 +38,8 @@ GradeWise 当前面向单校试运行，已交付登录、四角色 RBAC、模�
 
 六个同步子智能体和两个 `AsyncSubAgent` 注册到 Deep Agents。核心问数路径由 LangGraph 固定边编排；SQL 放行只取决于确定性规则与数据库权限。
 
+智能问数沿用报告链路的统一脱敏边界：送入任何模型前，问题、历史消息和查询结果中的学生姓名会替换为当前请求内稳定的 HMAC 别名。服务器只在执行已通过安全门的参数化 SQL 时恢复真实值，审计、可视化和最终总结继续使用别名；授权后的原始查询结果仅返回给当前用户界面。
+
 ## P1 洞察与报告链路
 
 ```text
@@ -81,3 +83,12 @@ GradeWise 当前面向单校试运行，已交付登录、四角色 RBAC、模�
 图表导出通过独立 `chart-mcp` 服务完成。后端和 MCP 服务分别执行 ECharts 白名单校验，拒绝 formatter、renderItem、外部 URL 和未知系列，再以 SSR 方式渲染 SVG。服务仅暴露于 Compose 内网，并使用服务令牌认证。
 
 当前 Agent Server 是官方内存开发运行时，容器和协议边界已经独立，但不具备生产持久性。正式部署必须切换到具有持久化、鉴权、重试和可观测性的生产 Agent Server。
+
+## 工程化与运行保障
+
+- Alembic 是数据库结构的唯一版本入口；Docker 启动先迁移再运行 API，旧版完整数据库可安全建立基线，部分缺表则拒绝静默补齐。
+- structlog 统一应用和 Uvicorn 日志，生产环境输出 JSON；每个 HTTP 请求携带或生成 `X-Request-ID`，记录状态码与耗时，并遮蔽敏感字段。
+- `/health/live` 只表示进程存活，`/health/ready` 与兼容入口 `/health` 在两秒边界内并发检查 PostgreSQL 和 Redis，依赖异常时返回 503。
+- GitHub Actions 在每次推送及拉取请求时执行 Ruff、Alembic 漂移检查、后端测试、TypeScript 检查、前端构建、依赖审计、图表服务检查和隔离 Playwright E2E。当前属于 CI 质量门，不包含自动部署。
+- Playwright 核心用例覆盖“教务登录 → 智能问数 → 展示图表与数据表”，E2E Compose 使用独立端口和临时数据库卷，不调用外部模型。
+- Vite 将 ZRender 单独拆包，避免分析页异步块超过默认 500 KB 警告线。

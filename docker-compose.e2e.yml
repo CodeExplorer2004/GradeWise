@@ -1,0 +1,28 @@
+services:
+  postgres:
+    environment:
+      POSTGRES_DB: gradewise
+      POSTGRES_USER: gradewise
+      POSTGRES_PASSWORD: e2e-password
+      APP_READONLY_USER: gradewise_ro
+      APP_READONLY_PASSWORD: e2e-readonly-password
+
+  agent-worker:
+    environment:
+      LLM_API_KEY: ""
+      QWEN_API_KEY: "e2e-placeholder-key-not-used"
+
+  backend:
+    environment:
+      ENVIRONMENT: test
+      DATABASE_URL: postgresql+asyncpg://gradewise:e2e-password@postgres:5432/gradewise
+      READONLY_DATABASE_URL: postgresql+asyncpg://gradewise_ro:e2e-readonly-password@postgres:5432/gradewise
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: e2e-only-secret-with-at-least-32-characters
+      LLM_API_KEY: ""
+      QWEN_API_KEY: ""
+      SEED_FAKE_DATA: "true"
+
+  frontend:
+    ports: !override
+      - "127.0.0.1:28080:80"

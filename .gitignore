@@ -14,5 +14,7 @@ htmlcov/
 *.sqlite3
 node_modules/
 dist/
+playwright-report/
+test-results/
 .idea/
 .vscode/
