@@ -49,7 +49,7 @@ services:
     expose:
       - "2024"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:2024/docs')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:2024/docs')"]
       interval: 10s
       timeout: 5s
       retries: 15
@@ -78,7 +78,7 @@ services:
     expose:
       - "8000"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready')"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -94,7 +94,7 @@ services:
     ports:
       - "8080:80"
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost/"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
       interval: 10s
       timeout: 5s
       retries: 5
