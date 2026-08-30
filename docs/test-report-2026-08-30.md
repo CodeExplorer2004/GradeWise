@@ -19,6 +19,7 @@
 | Alembic 现有库接管 | 升级到 `20260830_0002`，27,720 条成绩迁移前后不变 |
 | Alembic 空库迁移 | 成功创建 14 张业务表、版本表及 `score_facts` 视图 |
 | Alembic 漂移检查 | `No new upgrade operations detected` |
+| Alembic 唯一性对齐 | 空库升至 `20260830_0003`；重复唯一约束 0 个，保留唯一索引 3 个 |
 | 前端类型检查 | `vue-tsc --noEmit` 通过 |
 | 前端生产构建 | 通过，无 500 KB 分块警告、无循环块警告 |
 | 最大业务分块 | 由 582.51 KB 降至 407.07 KB；ZRender 独立为 177.02 KB |
