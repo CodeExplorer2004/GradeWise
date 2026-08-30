@@ -34,7 +34,7 @@ services:
     expose:
       - "3030"
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3030/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3030/health"]
       interval: 10s
       timeout: 5s
       retries: 10
