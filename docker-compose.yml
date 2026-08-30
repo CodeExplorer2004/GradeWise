@@ -1,0 +1,104 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gradewise}
+      POSTGRES_USER: ${POSTGRES_USER:-gradewise}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      APP_READONLY_USER: ${APP_READONLY_USER:-gradewise_ro}
+      APP_READONLY_PASSWORD: ${APP_READONLY_PASSWORD:-readonly-change-me}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gradewise} -d ${POSTGRES_DB:-gradewise}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  chart-mcp:
+    build: ./chart-mcp
+    environment:
+      MCP_SERVICE_TOKEN: ${MCP_SERVICE_TOKEN:-development-mcp-token}
+    expose:
+      - "3030"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3030/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  agent-worker:
+    build: ./agent-worker
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      LANGSMITH_TRACING: "false"
+    expose:
+      - "2024"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:2024/docs')"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  backend:
+    build: ./backend
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://gradewise:change-me@postgres:5432/gradewise}
+      READONLY_DATABASE_URL: ${READONLY_DATABASE_URL:-postgresql+asyncpg://gradewise_ro:readonly-change-me@postgres:5432/gradewise}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CHART_MCP_URL: http://chart-mcp:3030
+      MCP_SERVICE_TOKEN: ${MCP_SERVICE_TOKEN:-development-mcp-token}
+      AGENT_PROTOCOL_URL: http://agent-worker:2024
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      chart-mcp:
+        condition: service_healthy
+      agent-worker:
+        condition: service_healthy
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:

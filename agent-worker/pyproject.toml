@@ -1,0 +1,16 @@
+[project]
+name = "gradewise-agent-worker"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "langchain-openai>=0.3,<2",
+  "langgraph>=0.6,<2",
+  "langgraph-cli[inmem]==0.4.31",
+]
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]

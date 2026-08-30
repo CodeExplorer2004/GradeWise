@@ -1,0 +1,7 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "batch-report": "./app/graphs.py:batch_report_graph",
+    "batch-warning": "./app/graphs.py:batch_warning_graph"
+  }
+}

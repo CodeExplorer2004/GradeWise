@@ -1,0 +1,15 @@
+{
+  "name": "gradewise-chart-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/node": "2.0.0",
+    "@modelcontextprotocol/server": "2.0.0",
+    "echarts": "6.1.0",
+    "zod": "4.4.3"
+  }
+}
