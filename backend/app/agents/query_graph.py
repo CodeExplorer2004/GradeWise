@@ -4,6 +4,7 @@ import json
 import re
 from typing import Any, TypedDict
 
+import structlog
 from langgraph.graph import END, START, StateGraph
 from sqlglot import exp, parse_one
 from sqlglot.errors import ParseError
@@ -20,6 +21,8 @@ from app.services.privacy import (
     rows_for_llm,
 )
 from app.services.sql_security import SQLSafetyGate, ValidationResult, execute_scoped_query
+
+logger = structlog.get_logger(__name__)
 
 
 class QueryState(TypedDict, total=False):
@@ -666,7 +669,16 @@ async def visualization_node(state: QueryState) -> dict[str, Any]:
         default=str,
     )
     result = await _structured(registry.visualization_agent, prompt, VisualizationDraft)
-    return {"chart": secure_chart(result)}
+    chart = secure_chart(result)
+    if result.type != "none" and chart.type == "none":
+        fallback = secure_chart(_fallback_chart(rows, state["question"]))
+        logger.warning(
+            "model_chart_rejected_using_fallback",
+            model_chart_type=result.type,
+            fallback_chart_type=fallback.type,
+        )
+        return {"chart": fallback}
+    return {"chart": chart}
 
 
 async def final_node(state: QueryState) -> dict[str, Any]:

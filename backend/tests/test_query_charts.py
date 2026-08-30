@@ -1,5 +1,9 @@
-from app.agents.contracts import SchemaResolution
-from app.agents.query_graph import _failure_subject_chart, _subject_score_rate_trend_chart
+from app.agents.contracts import SchemaResolution, VisualizationDraft
+from app.agents.query_graph import (
+    _failure_subject_chart,
+    _subject_score_rate_trend_chart,
+    visualization_node,
+)
 from app.core.models import User, UserRole
 from app.services.chart_security import secure_chart
 
@@ -131,3 +135,53 @@ def test_failure_chart_only_shows_subjects_visible_to_subject_teacher() -> None:
 
     assert draft.option["xAxis"]["data"] == ["语文"]
     assert draft.option["series"][0]["data"] == [2]
+
+
+async def test_visualization_node_falls_back_when_model_chart_is_rejected(monkeypatch) -> None:
+    async def unsafe_visualization(*_args, **_kwargs) -> VisualizationDraft:
+        return VisualizationDraft(
+            type="bar",
+            title="各科平均分",
+            option={
+                "toolbox": {"show": True},
+                "xAxis": {"type": "category", "data": ["语文", "数学"]},
+                "yAxis": {"type": "value"},
+                "series": [{"type": "bar", "data": [82.5, 91.0]}],
+            },
+        )
+
+    monkeypatch.setattr("app.agents.query_graph.registry.enabled", True)
+    monkeypatch.setattr("app.agents.query_graph._structured", unsafe_visualization)
+
+    result = await visualization_node(
+        {
+            "question": "各科平均分",
+            "rows": [
+                {"subject_name": "语文", "average_score": 82.5, "max_score": 100},
+                {"subject_name": "数学", "average_score": 91.0, "max_score": 100},
+            ],
+        }
+    )
+
+    chart = result["chart"]
+    assert chart.type == "bar"
+    assert chart.option["xAxis"]["data"] == ["语文", "数学"]
+    assert chart.option["series"][0]["data"] == [82.5, 91.0]
+
+
+async def test_visualization_node_preserves_model_decision_to_omit_chart(monkeypatch) -> None:
+    async def no_visualization(*_args, **_kwargs) -> VisualizationDraft:
+        return VisualizationDraft(type="none", title="无需图表", option={})
+
+    monkeypatch.setattr("app.agents.query_graph.registry.enabled", True)
+    monkeypatch.setattr("app.agents.query_graph._structured", no_visualization)
+
+    result = await visualization_node(
+        {
+            "question": "说明查询结果",
+            "rows": [{"subject_name": "语文", "average_score": 82.5, "max_score": 100}],
+        }
+    )
+
+    assert result["chart"].type == "none"
+    assert result["chart"].title == "无需图表"

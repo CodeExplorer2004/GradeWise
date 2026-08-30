@@ -1,5 +1,20 @@
 import { expect, test } from '@playwright/test'
 
+test('网关公开存活与就绪检查', async ({ request }) => {
+  const live = await request.get('/health/live')
+  expect(live.ok()).toBeTruthy()
+  expect(live.headers()['content-type']).toContain('application/json')
+  expect(await live.json()).toEqual({ status: 'ok' })
+
+  const ready = await request.get('/health/ready')
+  expect(ready.ok()).toBeTruthy()
+  expect(ready.headers()['content-type']).toContain('application/json')
+  expect(await ready.json()).toEqual({
+    status: 'ok',
+    checks: { database: 'ok', redis: 'ok' },
+  })
+})
+
 test('教务登录后可完成问数并看到图表', async ({ page }) => {
   await page.goto('/login')
 
