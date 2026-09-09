@@ -61,9 +61,46 @@ def _history_means_past(question: str) -> bool:
     )
 
 
+_CHINESE_DIGITS = {
+    "零": 0,
+    "〇": 0,
+    "一": 1,
+    "二": 2,
+    "两": 2,
+    "三": 3,
+    "四": 4,
+    "五": 5,
+    "六": 6,
+    "七": 7,
+    "八": 8,
+    "九": 9,
+}
+
+
+def _recent_exam_limit(question: str) -> int | None:
+    match = re.search(
+        r"(?:最近|近)\s*([零〇一二两三四五六七八九十\d]+)\s*(?:次|场)\s*考试",
+        question,
+    )
+    if not match:
+        return None
+    token = match.group(1)
+    if token.isdigit():
+        value = int(token)
+    elif "十" in token:
+        tens, ones = token.split("十", maxsplit=1)
+        value = (_CHINESE_DIGITS.get(tens, 1) if tens else 1) * 10
+        value += _CHINESE_DIGITS.get(ones, 0) if ones else 0
+    else:
+        value = _CHINESE_DIGITS.get(token, 0)
+    return value if value > 0 else None
+
+
 def _is_broad_history_question(question: str) -> bool:
     markers = ("历史考试", "历次考试", "过往考试", "以往考试", "近几次考试")
-    return any(marker in question for marker in markers) or bool(
+    return _recent_exam_limit(question) is not None or any(
+        marker in question for marker in markers
+    ) or bool(
         re.search(r"[一二三四五六七八九十\d]+次考试", question)
     )
 
@@ -101,12 +138,33 @@ def _query_filters(state: QueryState) -> dict[str, str]:
     return _resolved_filters(state["question"], state["catalog"])
 
 
-def _where_clause(filters: dict[str, str], *, failed_only: bool = False) -> str:
+def _recent_exam_predicate(filters: dict[str, str], limit: int) -> str:
+    inner_predicates = [
+        f"{column} = {_quoted(value)}" for column, value in filters.items()
+    ]
+    inner_where = (
+        f" WHERE {' AND '.join(inner_predicates)}" if inner_predicates else ""
+    )
+    return (
+        "exam_id IN (SELECT exam_id FROM score_facts"
+        f"{inner_where} GROUP BY exam_id, exam_date "
+        f"ORDER BY exam_date DESC, exam_id DESC LIMIT {limit})"
+    )
+
+
+def _where_clause(
+    filters: dict[str, str],
+    *,
+    failed_only: bool = False,
+    recent_exam_limit: int | None = None,
+) -> str:
     predicates = [
         f"{column} = {_quoted(value)}" for column, value in filters.items()
     ]
     if failed_only:
         predicates.insert(0, "passed = false")
+    if recent_exam_limit is not None:
+        predicates.append(_recent_exam_predicate(filters, recent_exam_limit))
     return f" WHERE {' AND '.join(predicates)}" if predicates else ""
 
 
@@ -239,7 +297,11 @@ def _fallback_sql(state: QueryState) -> SQLDraft:
 
 
 async def schema_node(state: QueryState) -> dict[str, Any]:
-    if _is_failure_query(state["question"]) or not registry.enabled:
+    if (
+        _is_failure_query(state["question"])
+        or _recent_exam_limit(state["question"]) is not None
+        or not registry.enabled
+    ):
         return {"schema_resolution": _fallback_schema(state)}
     prompt = json.dumps(
         {
@@ -255,8 +317,13 @@ async def schema_node(state: QueryState) -> dict[str, Any]:
 
 
 async def sql_node(state: QueryState) -> dict[str, Any]:
+    recent_exam_limit = _recent_exam_limit(state["question"])
     if _is_failure_query(state["question"]):
-        where = _where_clause(_query_filters(state), failed_only=True)
+        where = _where_clause(
+            _query_filters(state),
+            failed_only=True,
+            recent_exam_limit=recent_exam_limit,
+        )
         return {
             "sql_draft": SQLDraft(
                 sql=(
@@ -269,6 +336,43 @@ async def sql_node(state: QueryState) -> dict[str, Any]:
                     "不及格明细使用确定性安全模板；考试、班级和科目按实体目录解析，"
                     "角色可见范围由服务器注入。"
                 ),
+            ),
+            "sql_retry_count": state.get("sql_retry_count", 0),
+        }
+    if recent_exam_limit is not None:
+        filters = dict(state["schema_resolution"].resolved_filters)
+        where = _where_clause(filters, recent_exam_limit=recent_exam_limit)
+        if any(marker in state["question"] for marker in ("趋势", "折线")):
+            sql = (
+                "SELECT exam_date, exam_name, subject_name, "
+                "ROUND(AVG(score::numeric / NULLIF(max_score::numeric, 0)) "
+                "* 100, 2) AS score_rate "
+                f"FROM score_facts{where} "
+                "GROUP BY exam_date, exam_name, subject_name "
+                "ORDER BY exam_date, subject_name"
+            )
+            explanation = "最近多次考试趋势使用确定性安全模板。"
+        elif any(marker in state["question"] for marker in ("平均", "均分")):
+            sql = (
+                "SELECT subject_name, ROUND(AVG(score)::numeric, 2) AS average_score, "
+                "MAX(max_score) AS max_score, "
+                "COUNT(DISTINCT exam_id) AS exam_count "
+                f"FROM score_facts{where} "
+                "GROUP BY subject_name ORDER BY subject_name"
+            )
+            explanation = "最近多次考试平均分使用确定性安全模板。"
+        else:
+            sql = (
+                "SELECT student_name, class_name, exam_date, exam_name, subject_name, "
+                "score, max_score, pass_score, passed "
+                f"FROM score_facts{where} "
+                "ORDER BY exam_date DESC, subject_name"
+            )
+            explanation = "最近多次考试成绩使用确定性安全模板。"
+        return {
+            "sql_draft": SQLDraft(
+                sql=sql,
+                explanation=f"{explanation}身份与角色范围由服务器注入。",
             ),
             "sql_retry_count": state.get("sql_retry_count", 0),
         }
@@ -379,7 +483,11 @@ def prepare_sql_retry(_: QueryState) -> dict[str, int]:
 
 async def audit_node(state: QueryState) -> dict[str, Any]:
     validation = state["validation"]
-    if registry.enabled and not _is_failure_query(state["question"]):
+    if (
+        registry.enabled
+        and not _is_failure_query(state["question"])
+        and _recent_exam_limit(state["question"]) is None
+    ):
         prompt = json.dumps(
             {
                 "sql": mask_student_aliases_in_sql(
@@ -465,7 +573,10 @@ def _fallback_chart(rows: list[dict[str, Any]], question: str) -> VisualizationD
 
 async def _failure_subject_counts(state: QueryState) -> list[dict[str, Any]]:
     filters = _query_filters(state)
-    where = _where_clause(filters)
+    where = _where_clause(
+        filters,
+        recent_exam_limit=_recent_exam_limit(state["question"]),
+    )
     validation = SQLSafetyGate().validate(
         "SELECT subject_name, "
         "SUM(CASE WHEN passed = false THEN 1 ELSE 0 END) AS failed_count, "
@@ -658,6 +769,8 @@ async def visualization_node(state: QueryState) -> dict[str, Any]:
     deterministic_rate_chart = _subject_score_rate_trend_chart(rows)
     if deterministic_rate_chart:
         return {"chart": secure_chart(deterministic_rate_chart)}
+    if _recent_exam_limit(state["question"]) is not None:
+        return {"chart": secure_chart(_fallback_chart(rows, state["question"]))}
     if not registry.enabled:
         return {"chart": secure_chart(_fallback_chart(rows, state["question"]))}
     prompt = json.dumps(
@@ -698,7 +811,12 @@ async def final_node(state: QueryState) -> dict[str, Any]:
         top_subjects = sorted(counts, key=lambda item: item[1], reverse=True)[:3]
         top_text = "、".join(f"{subject}{count}人次" for subject, count in top_subjects)
         exam_name = _query_filters(state).get("exam_name")
-        scope = exam_name or "当前查询范围"
+        recent_exam_limit = _recent_exam_limit(state["question"])
+        scope = exam_name or (
+            f"最近{recent_exam_limit}次考试"
+            if recent_exam_limit is not None
+            else "当前查询范围"
+        )
         detail_note = (
             f"下方显示其中{len(rows)}条明细。"
             if len(rows) < total
@@ -708,6 +826,66 @@ async def final_node(state: QueryState) -> dict[str, Any]:
             "answer": (
                 f"{scope}共有{total}人次不及格；"
                 f"不及格人次较多的科目为{top_text}。{detail_note}"
+            )
+        }
+    recent_exam_limit = _recent_exam_limit(state["question"])
+    if recent_exam_limit is not None:
+        if not rows:
+            return {"answer": f"最近{recent_exam_limit}次考试内没有找到符合条件的数据。"}
+
+        question = state["question"]
+        if any(marker in question for marker in ("平均", "均分")):
+            actual_exam_count = max(int(row.get("exam_count") or 0) for row in rows)
+            if len(rows) == 1:
+                row = rows[0]
+                subject_name = str(row.get("subject_name") or "该科目")
+                average_score = float(row.get("average_score") or 0)
+                if actual_exam_count < recent_exam_limit:
+                    return {
+                        "answer": (
+                            f"查询最近{recent_exam_limit}次考试，实际找到"
+                            f"{actual_exam_count}次；{subject_name}平均分为"
+                            f"{average_score:.2f}分。"
+                        )
+                    }
+                return {
+                    "answer": (
+                        f"最近{recent_exam_limit}次考试{subject_name}"
+                        f"平均分为{average_score:.2f}分。"
+                    )
+                }
+            return {
+                "answer": (
+                    f"已统计最近{actual_exam_count}次考试的{len(rows)}个科目平均分，"
+                    "详见下方图表和数据。"
+                )
+            }
+
+        exams = {
+            (str(row.get("exam_date", "")), str(row.get("exam_name", "")))
+            for row in rows
+            if row.get("exam_name")
+        }
+        subjects = {str(row["subject_name"]) for row in rows if row.get("subject_name")}
+        if any(marker in question for marker in ("趋势", "折线")):
+            return {
+                "answer": (
+                    f"已汇总最近{len(exams)}次考试、{len(subjects)}个科目的成绩趋势，"
+                    "详见下方图表和数据。"
+                )
+            }
+        if len(rows) == 1 and rows[0].get("score") is not None:
+            row = rows[0]
+            return {
+                "answer": (
+                    f"最近一次{row.get('exam_name', '考试')}中，"
+                    f"{row.get('subject_name', '该科目')}成绩为{row['score']}分。"
+                )
+            }
+        return {
+            "answer": (
+                f"已汇总最近{len(exams)}次考试、{len(subjects)}个科目的成绩；"
+                "详细分数见下方成绩档案。"
             )
         }
     if rows and _is_broad_history_question(state["question"]):
