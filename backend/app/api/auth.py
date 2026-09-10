@@ -1,5 +1,5 @@
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -14,8 +14,21 @@ from app.core.security import (
     decode_token,
     verify_password,
 )
+from app.services.login_rate_limit import RateLimitState, login_rate_limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+def _too_many_attempts(state: RateLimitState) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail="登录尝试过于频繁，请稍后再试",
+        headers={"Retry-After": str(max(state.retry_after, 1))},
+    )
 
 
 def _user_info(user: User) -> UserInfo:
@@ -38,15 +51,25 @@ def _token_response(user: User) -> TokenResponse:
 
 @router.post("/login", response_model=TokenResponse)
 async def login(
-    payload: LoginRequest, session: AsyncSession = Depends(get_db)
+    request: Request,
+    payload: LoginRequest,
+    session: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
+    client_ip = _client_ip(request)
+    limit_state = await login_rate_limiter.status(client_ip, payload.username)
+    if limit_state.limited:
+        raise _too_many_attempts(limit_state)
     user = await session.scalar(
         select(User)
         .options(selectinload(User.student), selectinload(User.teacher))
         .where(User.username == payload.username, User.active.is_(True))
     )
     if not user or not verify_password(payload.password, user.password_hash):
+        limit_state = await login_rate_limiter.record_failure(client_ip, payload.username)
+        if limit_state.limited:
+            raise _too_many_attempts(limit_state)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误")
+    await login_rate_limiter.clear(client_ip, payload.username)
     return _token_response(user)
 
 

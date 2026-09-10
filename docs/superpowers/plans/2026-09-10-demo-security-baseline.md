@@ -118,7 +118,7 @@ git commit -m "feat: add redis login failure limiter"
 - Consumes: `login_rate_limiter.status`, `record_failure`, and `clear`.
 - Produces: `POST /api/auth/login` responses: 401 before the threshold, 429 with integer `Retry-After` at/after the threshold, normal token response after successful authentication.
 
-- [ ] **Step 1: Write failing route behavior tests**
+- [x] **Step 1: Write failing route behavior tests**
 
 Call the real async `login()` function with a request-shaped object containing `client.host`, an `AsyncMock` database session, and a limiter fake with real counter state. Patch only password hashing verification. Cover:
 
@@ -157,7 +157,7 @@ async def test_redis_outage_does_not_replace_valid_authentication():
 
 Assert only consumer-visible results and real limiter state, not mock call counts except to prove a pre-limited request does not perform password/database work.
 
-- [ ] **Step 2: Run route tests and verify RED**
+- [x] **Step 2: Run route tests and verify RED**
 
 Run:
 
@@ -167,11 +167,11 @@ python -m pytest tests/test_auth_rate_limit.py -q -p no:cacheprovider
 
 Expected: tests fail because `login()` does not accept the request or consult the limiter.
 
-- [ ] **Step 3: Wire the limiter into login and lifecycle**
+- [x] **Step 3: Wire the limiter into login and lifecycle**
 
 Change the route signature to accept `Request` before the payload. Derive the direct client host, check status before querying the user, record invalid attempts, attach `Retry-After` on 429, and clear after password verification succeeds. Close `login_rate_limiter.redis` in the application lifespan beside the existing conversation Redis client.
 
-- [ ] **Step 4: Run focused and full authentication tests**
+- [x] **Step 4: Run focused and full authentication tests**
 
 Run:
 
@@ -182,7 +182,7 @@ python -m ruff check --no-cache app/api/auth.py app/main.py tests/test_auth_rate
 
 Expected: all pass.
 
-- [ ] **Step 5: Commit route enforcement**
+- [x] **Step 5: Commit route enforcement**
 
 ```powershell
 git add backend/app/api/auth.py backend/app/main.py backend/tests/test_auth_rate_limit.py

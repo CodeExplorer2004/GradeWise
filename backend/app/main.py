@@ -15,6 +15,7 @@ from app.core.logging import configure_logging
 from app.core.seed import seed_demo_data
 from app.services.conversation_memory import conversation_memory
 from app.services.health import readiness_status
+from app.services.login_rate_limit import login_rate_limiter
 
 settings = get_settings()
 configure_logging(settings.environment)
@@ -33,6 +34,7 @@ async def lifespan(_: FastAPI):
         yield
     finally:
         await conversation_memory.redis.aclose()
+        await login_rate_limiter.redis.aclose()
         await engine.dispose()
         await readonly_engine.dispose()
         logger.info("application_stopped")
