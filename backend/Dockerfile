@@ -6,6 +6,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 COPY pyproject.toml ./
 RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install --timeout 120 --retries 10 "pip==26.2.1"
+RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --timeout 120 --retries 10 .
 COPY alembic.ini ./
 COPY alembic ./alembic

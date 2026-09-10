@@ -257,13 +257,14 @@ git commit -m "feat: add demo security response headers"
 
 **Files:**
 - Modify: `backend/Dockerfile`
+- Modify: `.env.example`
 - Modify: `docs/test-report-2026-09-10.md`
 - Modify: `README.md`
 
 **Interfaces:**
 - Produces: backend image with pip `26.2.1`; dated report containing exact throttling, header, build, and test evidence.
 
-- [ ] **Step 1: Pin the updated installer in the backend image**
+- [x] **Step 1: Pin the updated installer in the backend image**
 
 Before installing the project, add:
 
@@ -274,7 +275,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 Keep project dependency installation as a separate cached layer.
 
-- [ ] **Step 2: Build and inspect the real image**
+- [x] **Step 2: Build and inspect the real image**
 
 Run:
 
@@ -285,7 +286,7 @@ docker run --rm --entrypoint python gradewise-hardening-backend -m pip --version
 
 Expected: exit 0 and output begins with `pip 26.2.1`.
 
-- [ ] **Step 3: Run the complete security and project verification**
+- [x] **Step 3: Run the complete security and project verification**
 
 Run:
 
@@ -301,14 +302,14 @@ docker compose -p gradewise-hardening -f docker-compose.yml -f docker-compose.e2
 
 Expected: every command exits 0 and all six services are healthy.
 
-- [ ] **Step 4: Update documentation with measured evidence**
+- [x] **Step 4: Update documentation with measured evidence**
 
 Document the 5 failures / 60 seconds rule, Redis fail-open demo boundary, response-header policy, Nginx version suppression, pip version, exact test counts, and that token revocation/HttpOnly cookies remain outside this demo scope.
 
-- [ ] **Step 5: Commit documentation and Dockerfile**
+- [x] **Step 5: Commit documentation and Dockerfile**
 
 ```powershell
-git add backend/Dockerfile README.md docs/test-report-2026-09-10.md
+git add backend/Dockerfile .env.example README.md docs/test-report-2026-09-10.md
 git commit -m "build: harden demo service baseline"
 ```
 

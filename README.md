@@ -9,7 +9,7 @@ GradeWise 是一个面向单校试运行的学生成绩智能查询项目。项�
 - Deep Agents 主智能体、六个同步子智能体，以及批量报告/批量预警两个异步子智能体。
 - LangGraph 固定执行链，安全审计不能被主智能体跳过。
 - SQLGlot AST 白名单、参数化、只读 PostgreSQL 用户、超时、500 行限制和服务端权限范围注入。
-- Redis 保存最近 12 条对话消息，默认 TTL 24 小时。
+- Redis 保存最近 12 条对话消息，默认 TTL 24 小时；登录失败默认按客户端与账号组合在 60 秒内限流，第 5 次失败返回 429。
 - Faker 生成 1 所学校及初一、初二、初三各 6 个班、每个年级 252 名学生的模拟数据；三个年级按独立课程方案、教师、班主任、考试和账号组织，成绩只能为整数或以 `.5` 结尾。
 - 默认使用通义千问，并保留 DeepSeek 的 OpenAI-compatible 接口切换；未配置模型密钥时使用有限的安全查询模板，便于本地演示。
 - P1 看板洞察：最近一次考试的学生均分分布（每名学生计一次）、统计异常、跨考试波动和最新不及格记录，全部由确定性 SQL 计算；关注记录支持分类分页查看。
@@ -19,7 +19,7 @@ GradeWise 是一个面向单校试运行的学生成绩智能查询项目。项�
 - P2 交互与可视化：Web Speech API 中文语音输入、高风险集合变化浏览器提醒、独立图表 MCP 容器和 SVG 导出。
 - P2 异步任务：独立 Agent Protocol 容器，支持按账号权限选择班级/科目/考试范围、任务历史、跨页面轮询、完成提醒、运行中更新、取消和结构化脱敏结果；任务台账与结果保存在 PostgreSQL，worker 状态丢失时可识别中断并重新执行。
 - 跨学年分析：统一支持学年、年级、届别、学期、考试类型、班级、科目和考试范围；管理员可下钻，教师/班主任/学生只显示授权筛选项，多学年或多年级时自动切换为可比的得分率/及格率口径。
-- 工程化基线：Alembic 版本化迁移、GitHub Actions 持续集成、structlog 结构化日志、数据库/Redis 就绪检查，以及登录到问数看图的 Playwright E2E。
+- 工程化基线：Alembic 版本化迁移、GitHub Actions 持续集成、structlog 结构化日志、数据库/Redis 就绪检查、安全响应头、Nginx 版本隐藏，以及登录到问数看图的 Playwright E2E。
 - 前端按 ZRender 拆包，原 582.51 KB 的分析页大块降至 407.07 KB，构建不再触发 Vite 500 KB 警告。
 
 当前 Docker Compose 启动 PostgreSQL、Redis、图表 MCP、Agent worker、后端和前端六个服务；后端启动前自动执行 `alembic upgrade head`。设计说明见 [架构基线](docs/architecture.md)、[阶段计划](docs/phases.md) 和 [最新测试报告](docs/test-report-2026-09-10.md)。
@@ -30,6 +30,7 @@ GradeWise 是一个面向单校试运行的学生成绩智能查询项目。项�
 
 1. 复制 `.env.example` 为 `.env`。
 2. 至少修改 `POSTGRES_PASSWORD`、`APP_READONLY_PASSWORD` 和 `JWT_SECRET`。
+   登录失败限流默认为 5 次/60 秒，可通过 `LOGIN_MAX_FAILURES` 和 `LOGIN_WINDOW_SECONDS` 调整。
 3. 默认填写 `QWEN_API_KEY` 使用通义千问；如需切回 DeepSeek，设置 `LLM_PROVIDER=deepseek` 并填写 `LLM_API_KEY`。
 4. 启动：
 
