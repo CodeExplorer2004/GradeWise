@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_minutes: int = 30
     refresh_token_days: int = 7
+    login_max_failures: int = Field(default=5, ge=2, le=20)
+    login_window_seconds: int = Field(default=60, ge=10, le=3600)
     cors_origins: str = "http://localhost:5173,http://localhost:8080"
 
     llm_provider: Literal["deepseek", "qwen"] = "qwen"

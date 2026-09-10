@@ -34,7 +34,7 @@
 - Consumes: `Settings.redis_url`, redis-py `Redis`, structlog.
 - Produces: `RateLimitState(limited: bool, retry_after: int)`; `LoginRateLimiter.status(client_ip: str, username: str) -> RateLimitState`; `record_failure(client_ip: str, username: str) -> RateLimitState`; `clear(client_ip: str, username: str) -> None`; singleton `login_rate_limiter`.
 
-- [ ] **Step 1: Write the failing limiter behavior tests**
+- [x] **Step 1: Write the failing limiter behavior tests**
 
 Create a small in-memory Redis double that implements the exact `eval` and `delete` boundary used by the service. Add tests proving:
 
@@ -68,7 +68,7 @@ async def test_redis_error_fails_open_without_raising():
 
 The production mutation each test catches is respectively: an off-by-one threshold, a shared or identifying key, over-broad clearing, and global login outage during Redis failure.
 
-- [ ] **Step 2: Run the limiter tests and verify RED**
+- [x] **Step 2: Run the limiter tests and verify RED**
 
 Run:
 
@@ -78,7 +78,7 @@ python -m pytest tests/test_login_rate_limit.py -q -p no:cacheprovider
 
 Expected: collection fails because `app.services.login_rate_limit` does not exist.
 
-- [ ] **Step 3: Implement the minimal fixed-window service**
+- [x] **Step 3: Implement the minimal fixed-window service**
 
 Add settings:
 
@@ -89,7 +89,7 @@ login_window_seconds: int = Field(default=60, ge=10, le=3600)
 
 Use SHA-256 over `client_ip + "\\0" + username.strip().casefold()` to construct `gradewise:login-fail:<digest>`. Use one Redis Lua script for atomic `INCR`, first-write `EXPIRE`, and TTL retrieval. A read-only status script returns current count and remaining TTL. Clamp missing/non-positive TTL to the configured window. Catch `RedisError`, log only `operation`, and return an allowed state.
 
-- [ ] **Step 4: Run the limiter tests and Ruff**
+- [x] **Step 4: Run the limiter tests and Ruff**
 
 Run:
 
@@ -100,7 +100,7 @@ python -m ruff check --no-cache app/services/login_rate_limit.py tests/test_logi
 
 Expected: all tests and lint pass.
 
-- [ ] **Step 5: Commit the limiter**
+- [x] **Step 5: Commit the limiter**
 
 ```powershell
 git add backend/app/core/config.py backend/app/services/login_rate_limit.py backend/tests/test_login_rate_limit.py
