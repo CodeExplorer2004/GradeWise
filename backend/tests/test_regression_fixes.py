@@ -107,7 +107,9 @@ async def test_batch_warning_passes_the_complete_validated_scope(monkeypatch) ->
             task_id="task",
             run_id="run",
             task_type=task_type,
-            status="pending",
+            status="running",
+            stage="agent_running",
+            status_message="Agent 正在生成报告",
             scope=scope or {},
         )
 

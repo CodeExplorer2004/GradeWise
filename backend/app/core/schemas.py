@@ -287,11 +287,35 @@ class AgentTaskUpdate(BaseModel):
     message: str = Field(min_length=1, max_length=3000)
 
 
+AgentTaskStatus = Literal[
+    "queued", "running", "success", "error", "cancelled", "interrupted"
+]
+AgentTaskStage = Literal[
+    "collecting_evidence",
+    "submitting",
+    "agent_running",
+    "saving_result",
+    "completed",
+    "failed",
+    "cancelled",
+    "interrupted",
+]
+
+
 class AgentTaskResponse(BaseModel):
     task_id: str
-    run_id: str
+    run_id: str | None = None
     task_type: Literal["batch_report", "batch_warning"]
-    status: str
+    status: AgentTaskStatus
+    stage: AgentTaskStage
+    status_message: str
     result: str | None = None
     scope: AgentTaskScope = Field(default_factory=AgentTaskScope)
-    created_at: str | None = None
+    requested_scope: AgentTaskScope = Field(default_factory=AgentTaskScope)
+    error_code: str | None = None
+    attempt_count: int = 0
+    can_retry: bool = False
+    created_at: datetime | None = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    updated_at: datetime | None = None
