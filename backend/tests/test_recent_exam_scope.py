@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -40,6 +41,16 @@ def _state(question: str, *, filters: dict[str, str] | None = None) -> dict:
             resolved_filters=filters or {},
         ),
     }
+
+
+def _block_orchestrator(monkeypatch) -> None:
+    monkeypatch.setattr(
+        query_graph.registry,
+        "orchestrator",
+        SimpleNamespace(
+            ainvoke=AsyncMock(side_effect=AssertionError("model must not be called"))
+        ),
+    )
 
 
 @pytest.mark.asyncio
@@ -173,11 +184,7 @@ async def test_recent_average_visualization_does_not_call_the_model(monkeypatch)
 async def test_recent_subject_average_answer_is_derived_from_the_aggregate_row(
     monkeypatch,
 ) -> None:
-    monkeypatch.setattr(
-        query_graph.registry.orchestrator,
-        "ainvoke",
-        AsyncMock(side_effect=AssertionError("model must not be called")),
-    )
+    _block_orchestrator(monkeypatch)
 
     result = await query_graph.final_node(
         {
@@ -198,11 +205,7 @@ async def test_recent_subject_average_answer_is_derived_from_the_aggregate_row(
 
 @pytest.mark.asyncio
 async def test_recent_average_answer_reports_when_fewer_exams_exist(monkeypatch) -> None:
-    monkeypatch.setattr(
-        query_graph.registry.orchestrator,
-        "ainvoke",
-        AsyncMock(side_effect=AssertionError("model must not be called")),
-    )
+    _block_orchestrator(monkeypatch)
 
     result = await query_graph.final_node(
         {
@@ -223,11 +226,7 @@ async def test_recent_average_answer_reports_when_fewer_exams_exist(monkeypatch)
 
 @pytest.mark.asyncio
 async def test_recent_single_score_answer_is_deterministic(monkeypatch) -> None:
-    monkeypatch.setattr(
-        query_graph.registry.orchestrator,
-        "ainvoke",
-        AsyncMock(side_effect=AssertionError("model must not be called")),
-    )
+    _block_orchestrator(monkeypatch)
 
     result = await query_graph.final_node(
         {
@@ -249,11 +248,7 @@ async def test_recent_single_score_answer_is_deterministic(monkeypatch) -> None:
 
 @pytest.mark.asyncio
 async def test_recent_trend_answer_reports_exact_exam_and_subject_counts(monkeypatch) -> None:
-    monkeypatch.setattr(
-        query_graph.registry.orchestrator,
-        "ainvoke",
-        AsyncMock(side_effect=AssertionError("model must not be called")),
-    )
+    _block_orchestrator(monkeypatch)
     rows = [
         {
             "exam_date": exam_date,
