@@ -202,11 +202,11 @@ git commit -m "feat: throttle repeated login failures"
 - Produces headers: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy: camera=(), geolocation=(), microphone=(self)`, and a CSP limited to same-origin application assets with no objects or framing.
 - Nginx must emit `Server: nginx` without a version token.
 
-- [ ] **Step 1: Write failing backend header tests**
+- [x] **Step 1: Write failing backend header tests**
 
 Test `apply_security_headers(Response())` and assert the five exact values. Also pass a response that already carries `X-Request-ID` and prove the helper preserves unrelated headers.
 
-- [ ] **Step 2: Extend the gateway E2E before changing configuration**
+- [x] **Step 2: Extend the gateway E2E before changing configuration**
 
 In the existing public health test, request both `/health/live` and `/`. Assert the API and SPA responses expose the required headers and that the SPA `server` response header does not match `/nginx\\/\\d/i`.
 
@@ -219,7 +219,7 @@ npm --prefix frontend run test:e2e -- core-flow.spec.ts
 
 Expected: FAIL because the headers and version suppression are absent.
 
-- [ ] **Step 3: Implement FastAPI and Nginx header policy**
+- [x] **Step 3: Implement FastAPI and Nginx header policy**
 
 Create a small response helper with a literal immutable header mapping and call it from a FastAPI middleware. In Nginx set `server_tokens off;` and add the same headers with `always` inside the static `location /` block. Use this CSP:
 
@@ -232,7 +232,7 @@ frame-ancestors 'none'; form-action 'self'
 
 API and health responses receive the policy from FastAPI; static SPA responses receive it from Nginx, avoiding duplicate proxy headers.
 
-- [ ] **Step 4: Verify unit behavior, rebuild gateway services, and turn E2E GREEN**
+- [x] **Step 4: Verify unit behavior, rebuild gateway services, and turn E2E GREEN**
 
 Run:
 
@@ -246,7 +246,7 @@ npm --prefix frontend run test:e2e
 
 Expected: backend header tests pass and all Playwright tests pass without CSP console failures.
 
-- [ ] **Step 5: Commit the security headers**
+- [x] **Step 5: Commit the security headers**
 
 ```powershell
 git add backend/app/services/security_headers.py backend/app/main.py backend/tests/test_security_headers.py frontend/nginx/default.conf frontend/e2e/core-flow.spec.ts
