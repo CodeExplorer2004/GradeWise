@@ -188,10 +188,26 @@ async def retry_agent_task(
 ) -> AgentTaskResponse:
     try:
         task = await load_owned_task(session, current_user, task_id)
-        _authorize(current_user, task.task_type)
-        requested_scope = AgentTaskScope(**task.requested_scope)
-        effective_scope = await _validated_scope(current_user, requested_scope)
+    except KeyError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="任务不存在",
+        ) from None
+
+    _authorize(current_user, task.task_type)
+    requested_scope = AgentTaskScope(**task.requested_scope)
+    effective_scope = await _validated_scope(current_user, requested_scope)
+    try:
         task_input = await _build_task_input(current_user, task.task_type, effective_scope)
+    except Exception:
+        return await fail_task(
+            session,
+            task,
+            "evidence_collection_failed",
+            "任务数据准备失败，可稍后重新执行",
+        )
+
+    try:
         return await retry_task(
             session,
             current_user,
@@ -200,21 +216,18 @@ async def retry_agent_task(
             effective_scope,
             task_input.result_prefix,
         )
-    except KeyError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="任务不存在",
-        ) from None
     except InvalidTaskTransition as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),
         ) from exc
-    except httpx.HTTPError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Agent 服务暂不可用",
-        ) from exc
+    except httpx.HTTPError:
+        return await fail_task(
+            session,
+            task,
+            "worker_unavailable",
+            "Agent 服务暂不可用，可稍后重新执行",
+        )
 
 
 @router.post("/{task_id}/update", response_model=AgentTaskResponse)

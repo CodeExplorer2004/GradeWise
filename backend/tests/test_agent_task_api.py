@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import ANY, AsyncMock
 
 import httpx
 import pytest
@@ -211,6 +211,89 @@ async def test_retry_revalidates_saved_requested_scope(monkeypatch) -> None:
         "description": "new redacted evidence",
         "retry_scope": {"class_name": "初一（1）班", "subject_name": "数学"},
     }
+
+
+async def test_retry_persists_safe_error_when_evidence_collection_fails(
+    monkeypatch,
+) -> None:
+    stored = SimpleNamespace(
+        id="task-1",
+        task_type="batch_report",
+        requested_scope={},
+    )
+    safe_failure = _response("error").model_copy(
+        update={
+            "error_code": "evidence_collection_failed",
+            "status_message": "任务数据准备失败，可稍后重新执行",
+        }
+    )
+    fail_task = AsyncMock(return_value=safe_failure)
+    retry_task = AsyncMock()
+    monkeypatch.setattr(task_api, "load_owned_task", AsyncMock(return_value=stored))
+    monkeypatch.setattr(task_api, "_validated_scope", AsyncMock(return_value={}))
+    monkeypatch.setattr(
+        task_api,
+        "_build_task_input",
+        AsyncMock(side_effect=RuntimeError("raw evidence detail")),
+    )
+    monkeypatch.setattr(task_api, "retry_task", retry_task)
+    monkeypatch.setattr(task_api, "fail_task", fail_task)
+
+    result = await task_api.retry_agent_task("task-1", _admin(), AsyncMock())
+
+    assert result.error_code == "evidence_collection_failed"
+    assert "raw evidence detail" not in result.status_message
+    retry_task.assert_not_awaited()
+    fail_task.assert_awaited_once_with(
+        ANY,
+        stored,
+        "evidence_collection_failed",
+        "任务数据准备失败，可稍后重新执行",
+    )
+
+
+async def test_retry_persists_safe_error_when_submission_fails(monkeypatch) -> None:
+    stored = SimpleNamespace(
+        id="task-1",
+        task_type="batch_report",
+        requested_scope={},
+    )
+    safe_failure = _response("error").model_copy(
+        update={
+            "error_code": "worker_unavailable",
+            "status_message": "Agent 服务暂不可用，可稍后重新执行",
+        }
+    )
+    fail_task = AsyncMock(return_value=safe_failure)
+    monkeypatch.setattr(task_api, "load_owned_task", AsyncMock(return_value=stored))
+    monkeypatch.setattr(task_api, "_validated_scope", AsyncMock(return_value={}))
+    monkeypatch.setattr(
+        task_api,
+        "_build_task_input",
+        AsyncMock(
+            return_value=SimpleNamespace(
+                description="redacted evidence",
+                result_prefix=None,
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        task_api,
+        "retry_task",
+        AsyncMock(side_effect=httpx.ConnectError("internal worker address")),
+    )
+    monkeypatch.setattr(task_api, "fail_task", fail_task)
+
+    result = await task_api.retry_agent_task("task-1", _admin(), AsyncMock())
+
+    assert result.error_code == "worker_unavailable"
+    assert "internal worker address" not in result.status_message
+    fail_task.assert_awaited_once_with(
+        ANY,
+        stored,
+        "worker_unavailable",
+        "Agent 服务暂不可用，可稍后重新执行",
+    )
 
 
 @pytest.mark.parametrize(
