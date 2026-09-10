@@ -130,6 +130,19 @@ export const useTaskStore = defineStore('tasks', () => {
     }
   }
 
+  async function retry(taskId: string) {
+    loading.value = true
+    try {
+      const { data } = await tasksApi.retry(taskId)
+      merge(data)
+      currentTaskId.value = data.task_id
+      schedulePoll()
+      return data
+    } finally {
+      loading.value = false
+    }
+  }
+
   function select(taskId: string) {
     currentTaskId.value = taskId
     unreadCompleted.value = 0
@@ -137,6 +150,6 @@ export const useTaskStore = defineStore('tasks', () => {
 
   return {
     tasks, options, currentTaskId, currentTask, activeCount, loading, unreadCompleted,
-    initialize, start, refresh, cancel, update, select, reset,
+    initialize, start, refresh, cancel, update, retry, select, reset,
   }
 })

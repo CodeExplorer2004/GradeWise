@@ -37,7 +37,8 @@ test('教务登录后可完成问数并看到图表', async ({ page }) => {
   expect(payload.rows.length).toBeGreaterThan(0)
   expect(payload.chart.type).not.toBe('none')
 
-  await expect(page.getByText(/已返回 \d+ 条数据/)).toBeVisible()
-  await expect(page.locator('.inline-chart canvas')).toBeVisible()
-  await expect(page.locator('.result-table tbody tr').first()).toBeVisible()
+  const latestResult = page.locator('.message-row.assistant .message-card.has-results').last()
+  await expect(latestResult.getByText(/已返回 \d+ 条数据/)).toBeVisible()
+  await expect(latestResult.locator('.inline-chart canvas')).toBeVisible()
+  await expect(latestResult.locator('.result-table tbody tr').first()).toBeVisible()
 })

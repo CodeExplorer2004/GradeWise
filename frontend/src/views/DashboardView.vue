@@ -211,7 +211,7 @@ const cards = computed(() => [
 ])
 
 const taskStatusLabel = computed(() => ({
-  pending: '等待执行',
+  queued: '等待执行',
   running: '执行中',
   success: '已完成',
   error: '执行失败',
@@ -219,7 +219,7 @@ const taskStatusLabel = computed(() => ({
   interrupted: '已中断',
 }[task.value?.status || ''] || task.value?.status || '未启动'))
 
-const taskIsActive = computed(() => ['pending', 'running'].includes(task.value?.status || ''))
+const taskIsActive = computed(() => ['queued', 'running'].includes(task.value?.status || ''))
 const alertPageCount = computed(() => Math.max(1, Math.ceil(alertPage.value.total / alertPage.value.page_size)))
 const notificationEnabled = computed(() => notificationState.value === 'enabled')
 const notificationButtonLabel = computed(() => ({
@@ -277,6 +277,23 @@ async function updateAgentTask() {
   } catch (error: any) {
     MessagePlugin.error(error.response?.data?.detail || '任务更新失败')
   }
+}
+
+async function retryAgentTask() {
+  if (!task.value?.can_retry) return
+  try {
+    await taskStore.retry(task.value.task_id)
+    MessagePlugin.success('任务已重新提交')
+  } catch (error: any) {
+    MessagePlugin.error(error.response?.data?.detail || '任务重新执行失败')
+  }
+}
+
+function formatTaskTime(value?: string | null) {
+  if (!value) return '未知'
+  return new Intl.DateTimeFormat('zh-CN', {
+    month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+  }).format(new Date(value))
 }
 
 async function generateReport() {
@@ -640,6 +657,7 @@ onMounted(async () => {
             <span v-if="task" class="task-status" :class="task.status">{{ taskStatusLabel }}</span>
           </header>
           <p class="task-description">批量报告和全校预警由独立 Agent Protocol 服务执行。提交后可切换到智能问数，任务会继续运行并在全局显示状态。</p>
+          <p v-if="task" class="task-stage-message">{{ task.status_message }}</p>
           <div class="task-scope-grid">
             <label><span>班级范围</span><select v-model="taskScope.class_name"><option value="">全部可见班级</option><option v-for="item in taskOptions.classes" :key="item" :value="item">{{ item }}</option></select></label>
             <label><span>科目范围</span><select v-model="taskScope.subject_name"><option value="">全部可见科目</option><option v-for="item in taskOptions.subjects" :key="item" :value="item">{{ item }}</option></select></label>
@@ -650,6 +668,7 @@ onMounted(async () => {
             <t-button v-if="auth.user?.role === 'academic_admin'" theme="warning" :loading="taskLoading" :disabled="taskIsActive" @click="startAgentTask('batch_warning')">启动批量预警</t-button>
             <t-button v-if="task" variant="outline" :disabled="taskLoading" @click="refreshAgentTask(false)">查询状态</t-button>
             <t-button v-if="taskIsActive" theme="danger" variant="outline" :loading="taskLoading" @click="cancelAgentTask">取消任务</t-button>
+            <t-button v-if="task?.can_retry" class="task-retry" theme="warning" :loading="taskLoading" @click="retryAgentTask">重新执行</t-button>
           </div>
           <div v-if="tasks.length" class="task-history-select">
             <label>历史任务</label>
@@ -663,6 +682,8 @@ onMounted(async () => {
           </div>
           <div v-if="task" class="task-meta">
             <small>任务 ID：{{ task.task_id }} · 范围：{{ task.scope.class_name || '全部班级' }} / {{ task.scope.subject_name || '全部科目' }} / {{ task.scope.exam_name || '全部考试' }}</small>
+            <small>尝试次数：{{ task.attempt_count }} · 最近更新：{{ formatTaskTime(task.updated_at) }}</small>
+            <p v-if="task.error_code" class="task-error">任务未完成；服务恢复后可使用“重新执行”再次生成。</p>
             <TaskResult v-if="task.result" :content="task.result" />
           </div>
         </section>
