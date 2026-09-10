@@ -237,6 +237,7 @@ class ImportBatch(Base):
 
 class AgentTask(Base):
     __tablename__ = "agent_tasks"
+    __mapper_args__ = {"eager_defaults": True}
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), index=True)

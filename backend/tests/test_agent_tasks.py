@@ -36,6 +36,7 @@ def test_agent_task_model_contains_persistent_worker_and_lifecycle_fields() -> N
     } <= set(columns.keys())
     assert columns["result"].nullable
     assert columns["worker_run_id"].nullable
+    assert AgentTask.__mapper__.eager_defaults is True
 
 
 def test_agent_task_response_preserves_compatible_scope_and_retry_metadata() -> None:
