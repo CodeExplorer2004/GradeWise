@@ -11,7 +11,7 @@ $compileCommand = "scripts/compile-python-locks.ps1 -PythonExecutable python"
 if ($env:OS -eq "Windows_NT") {
     $containerScript = @(
         "set -eu",
-        'python -m pip install --disable-pip-version-check --root-user-action=ignore --quiet "pip-tools==7.5.3"',
+        'python -m pip install --disable-pip-version-check --root-user-action=ignore --quiet "pip==26.1.2" "pip-tools==7.5.3"',
         "python -m piptools compile --generate-hashes --allow-unsafe --quiet --strip-extras --resolver=backtracking --newline=lf --no-emit-index-url --no-emit-trusted-host $mode backend/pyproject.toml --output-file backend/requirements.lock",
         "python -m piptools compile --generate-hashes --allow-unsafe --quiet --strip-extras --resolver=backtracking --newline=lf --no-emit-index-url --no-emit-trusted-host $mode --extra=dev backend/pyproject.toml --output-file backend/requirements-dev.lock",
         "python -m piptools compile --generate-hashes --allow-unsafe --quiet --strip-extras --resolver=backtracking --newline=lf --no-emit-index-url --no-emit-trusted-host $mode agent-worker/pyproject.toml --output-file agent-worker/requirements.lock"
