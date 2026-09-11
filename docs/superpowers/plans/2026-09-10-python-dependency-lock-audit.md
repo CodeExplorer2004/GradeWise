@@ -15,7 +15,7 @@
 - Lock backend runtime, backend development, and Agent worker runtime graphs separately.
 - Every distributable requirement is pinned with == and hashes; Docker and CI install with --require-hashes.
 - Lock files are generated artifacts and are never hand-edited.
-- Generate, install, audit, and run with Python 3.12.
+- Generate, install, audit, and run with Linux Python 3.12, matching Docker and CI. On Windows the PowerShell generator uses a `python:3.12-slim` container so Linux-only transitive dependencies are included.
 - Do not ignore audit findings. Fix compatible findings or document advisory ID, package, impact, and acceptance reason.
 - Keep dependency resolution at build or CI time, never container startup.
 
