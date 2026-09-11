@@ -95,7 +95,7 @@ Expected: both builds succeed using only exact hash-verified dependencies.
 
 Run pip freeze in each image and compare every package/version pair against its runtime lock. Expected: no missing or extra distributable dependencies apart from pip, setuptools, and wheel.
 
-- [ ] **Step 4: Commit Docker consumption**
+- [x] **Step 4: Commit Docker consumption**
 
     git add backend/Dockerfile agent-worker/Dockerfile
     git commit -m "build: install python services from locks"
@@ -142,15 +142,15 @@ Parse the YAML, run both audit commands locally, then commit:
 - Modify: README.md
 - Modify: docs/test-report-2026-09-10.md
 
-- [ ] **Step 1: Run full verification**
+- [x] **Step 1: Run full verification**
 
 Run 149+ backend tests, Ruff over app/tests/alembic, Alembic check, frontend build, all Playwright tests, both Docker builds, both audits, and Compose health checks.
 
-- [ ] **Step 2: Document regeneration and audit commands**
+- [x] **Step 2: Document regeneration and audit commands**
 
 README must explain normal no-upgrade regeneration and intentional -Upgrade usage. The test report records exact lock counts, audit result or advisory details, and image build evidence.
 
-- [ ] **Step 3: Commit evidence**
+- [x] **Step 3: Commit evidence**
 
     git add README.md docs/test-report-2026-09-10.md docs/superpowers/plans/2026-09-10-python-dependency-lock-audit.md
     git commit -m "docs: record python dependency audit"

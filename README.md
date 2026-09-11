@@ -82,6 +82,26 @@ python -m venv .venv
 .venv/Scripts/python -m uvicorn app.main:app --reload
 ```
 
+### Python 依赖锁与漏洞审计
+
+`backend/pyproject.toml` 与 `agent-worker/pyproject.toml` 是人工维护的兼容范围；三份 `requirements*.lock` 是面向 Linux Python 3.12 的生成产物，不应手工修改。Docker 和 CI 均使用 `--require-hashes` 从锁文件安装。
+
+从仓库根目录执行普通再生成（保留当前已锁版本）或有意升级：
+
+```powershell
+pwsh ./scripts/compile-python-locks.ps1
+pwsh ./scripts/compile-python-locks.ps1 -Upgrade
+```
+
+在 Windows 上，脚本要求 Docker daemon 正在运行，并自动在 `python:3.12-slim` 容器中生成锁，以包含 `uvloop` 等 Linux 运行时依赖。本机 Windows 可编辑安装适合快速开发；需要与 CI 完全一致时应使用 Docker。
+
+审计两个运行时锁：
+
+```powershell
+backend/.venv/Scripts/python -m pip_audit --disable-pip --require-hashes -r backend/requirements.lock
+backend/.venv/Scripts/python -m pip_audit --disable-pip --require-hashes -r agent-worker/requirements.lock
+```
+
 验证：
 
 ```bash
