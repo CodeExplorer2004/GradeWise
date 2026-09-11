@@ -6,7 +6,7 @@
 
 **Architecture:** Keep each pyproject.toml as the human-edited compatibility contract, generate service-specific pip requirements locks with exact versions and hashes, and install those locks directly in Docker. The backend development lock includes test, lint, lock-generation, and audit tooling; CI installs from it, verifies both runtime locks, and audits backend and worker dependencies independently.
 
-**Tech Stack:** Python 3.12, pip 26.2.1, pip-tools 7.x, pip-audit 2.x, Docker BuildKit, GitHub Actions.
+**Tech Stack:** Python 3.12, pip 26.2.1, pip-tools 7.5.3, pip-audit 2.x, Docker BuildKit, GitHub Actions.
 
 **Spec:** docs/superpowers/specs/2026-09-10-demo-agent-foundation-design.md
 
@@ -34,34 +34,34 @@
 - The script accepts -PythonExecutable and -Upgrade.
 - Without -Upgrade it runs pip-compile with --no-upgrade; with -Upgrade it refreshes allowed versions intentionally.
 
-- [ ] **Step 1: Add tooling ranges**
+- [x] **Step 1: Add tooling ranges**
 
-Add pip-audit>=2.7,<3 and pip-tools>=7.4,<8 to backend project.optional-dependencies.dev.
+Add pip-audit>=2.7,<3 and pip-tools==7.5.3 to backend project.optional-dependencies.dev. Version 7.5.3 is pinned because 7.6.1 constructs an invalid PyPI JSON URL for hash lookup and falls back to downloading every release artifact.
 
-- [ ] **Step 2: Add the generation script**
+- [x] **Step 2: Add the generation script**
 
 The script validates Python 3.12, resolves paths from its own location, and runs:
 
-    python -m piptools compile backend/pyproject.toml --output-file backend/requirements.lock --generate-hashes --strip-extras
-    python -m piptools compile backend/pyproject.toml --extra dev --output-file backend/requirements-dev.lock --generate-hashes --strip-extras
-    python -m piptools compile agent-worker/pyproject.toml --output-file agent-worker/requirements.lock --generate-hashes --strip-extras
+    python -m piptools compile backend/pyproject.toml --output-file backend/requirements.lock --generate-hashes --allow-unsafe --strip-extras
+    python -m piptools compile backend/pyproject.toml --extra dev --output-file backend/requirements-dev.lock --generate-hashes --allow-unsafe --strip-extras
+    python -m piptools compile agent-worker/pyproject.toml --output-file agent-worker/requirements.lock --generate-hashes --allow-unsafe --strip-extras
 
 Pass --no-upgrade by default and --upgrade only when -Upgrade is supplied. Set CUSTOM_COMPILE_COMMAND to the script command so regeneration instructions remain stable.
 
-- [ ] **Step 3: Bootstrap tooling and generate locks**
+- [x] **Step 3: Bootstrap tooling and generate locks**
 
 Run:
 
-    python -m pip install "pip-tools>=7.4,<8" "pip-audit>=2.7,<3"
+    python -m pip install "pip-tools==7.5.3" "pip-audit>=2.7,<3"
     ./scripts/compile-python-locks.ps1 -PythonExecutable python
 
 Expected: all three lock files contain exact pins and --hash entries.
 
-- [ ] **Step 4: Verify deterministic regeneration**
+- [x] **Step 4: Verify deterministic regeneration**
 
 Run the script again without -Upgrade, then run git diff --exit-code on the three lock files. Expected: no changes.
 
-- [ ] **Step 5: Commit generation inputs and locks**
+- [x] **Step 5: Commit generation inputs and locks**
 
     git add backend/pyproject.toml scripts/compile-python-locks.ps1 backend/requirements.lock backend/requirements-dev.lock agent-worker/requirements.lock
     git commit -m "build: lock python dependencies"
