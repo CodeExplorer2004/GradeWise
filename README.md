@@ -19,10 +19,10 @@ GradeWise 是一个面向单校试运行的学生成绩智能查询项目。项�
 - P2 交互与可视化：Web Speech API 中文语音输入、高风险集合变化浏览器提醒、独立图表 MCP 容器和 SVG 导出。
 - P2 异步任务：独立 Agent Protocol 容器，支持按账号权限选择班级/科目/考试范围、任务历史、跨页面轮询、完成提醒、运行中更新、取消和结构化脱敏结果；任务台账与结果保存在 PostgreSQL，worker 状态丢失时可识别中断并重新执行。
 - 跨学年分析：统一支持学年、年级、届别、学期、考试类型、班级、科目和考试范围；管理员可下钻，教师/班主任/学生只显示授权筛选项，多学年或多年级时自动切换为可比的得分率/及格率口径。
-- 工程化基线：Alembic 版本化迁移、GitHub Actions 持续集成、structlog 结构化日志、数据库/Redis 就绪检查、安全响应头、Nginx 版本隐藏，以及登录到问数看图的 Playwright E2E。
+- 工程化基线：Alembic 版本化迁移、GitHub Actions 持续集成、structlog 结构化日志、数据库/Redis 就绪检查、安全响应头、Nginx 版本隐藏，以及覆盖四角色权限与关键失败路径的 7 项 Playwright E2E。
 - 前端按 ZRender 拆包，原 582.51 KB 的分析页大块降至 407.07 KB，构建不再触发 Vite 500 KB 警告。
 
-当前 Docker Compose 启动 PostgreSQL、Redis、图表 MCP、Agent worker、后端和前端六个服务；后端启动前自动执行 `alembic upgrade head`。设计说明见 [架构基线](docs/architecture.md)、[阶段计划](docs/phases.md) 和 [最新测试报告](docs/test-report-2026-09-10.md)。
+当前 Docker Compose 启动 PostgreSQL、Redis、图表 MCP、Agent worker、后端和前端六个服务；后端启动前自动执行 `alembic upgrade head`。设计说明见 [架构基线](docs/architecture.md)、[汇报架构图](docs/demo-architecture.md)、[演示运行手册](docs/demo-runbook.md)、[阶段计划](docs/phases.md)、[最新测试报告](docs/test-report-2026-09-11.md) 和 [千问真实 API 测试报告](docs/qwen-live-test-2026-09-11.md)。
 
 > 当前 `agent-worker` 使用官方 LangGraph 本地 Agent Server，提供真实 Agent Protocol，但运行时为内存模式，适合本地开发与验收。正式生产部署需替换为带持久化和服务端认证的 LangGraph/LangSmith Deployment 或兼容 Agent Protocol 运行时。
 

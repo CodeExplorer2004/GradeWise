@@ -92,5 +92,7 @@ GradeWise 当前面向单校试运行，已交付登录、四角色 RBAC、模�
 - structlog 统一应用和 Uvicorn 日志，生产环境输出 JSON；每个 HTTP 请求携带或生成 `X-Request-ID`，记录状态码与耗时，并遮蔽敏感字段。
 - `/health/live` 只表示进程存活，`/health/ready` 与兼容入口 `/health` 在两秒边界内并发检查 PostgreSQL 和 Redis，依赖异常时返回 503。
 - GitHub Actions 在每次推送及拉取请求时执行 Ruff、Alembic 漂移检查、后端测试、TypeScript 检查、前端构建、依赖审计、图表服务检查和隔离 Playwright E2E。当前属于 CI 质量门，不包含自动部署。
-- Playwright 核心用例覆盖“教务登录 → 智能问数 → 展示图表与数据表”，E2E Compose 使用独立端口和临时数据库卷，不调用外部模型。
+- Playwright 共 7 项，除“教务登录 → 智能问数 → 展示图表与数据表”外，还覆盖四角色数据范围、未授权班级拒绝、登录失败限流、导入逐行校验，以及 Agent 中断重试交互。E2E Compose 使用独立端口和临时数据库卷，不调用外部模型。
 - Vite 将 ZRender 单独拆包，避免分析页异步块超过默认 500 KB 警告线。
+
+面向汇报的一页图见 [GradeWise 汇报架构图](demo-architecture.md)，演示顺序与故障回退见 [最终演示运行手册](demo-runbook.md)。
