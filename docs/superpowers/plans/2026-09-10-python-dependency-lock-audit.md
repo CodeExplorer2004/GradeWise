@@ -110,7 +110,7 @@ Run pip freeze in each image and compare every package/version pair against its 
 - CI audits backend/requirements.lock and agent-worker/requirements.lock separately.
 - CI regenerates locks without upgrades and fails when tracked locks drift from pyproject inputs.
 
-- [ ] **Step 1: Update CI installation**
+- [x] **Step 1: Update CI installation**
 
 Replace editable dependency resolution with:
 
@@ -118,18 +118,18 @@ Replace editable dependency resolution with:
 
 The source remains importable because CI commands run from backend and pytest already sets pythonpath.
 
-- [ ] **Step 2: Add lock drift checks**
+- [x] **Step 2: Add lock drift checks**
 
 Run the three piptools compile commands with --no-upgrade and fail on git diff for the three lock files.
 
-- [ ] **Step 3: Add two audit commands**
+- [x] **Step 3: Add two audit commands**
 
-    python -m pip_audit -r requirements.lock
-    python -m pip_audit -r ../agent-worker/requirements.lock
+    python -m pip_audit --disable-pip --require-hashes -r requirements.lock
+    python -m pip_audit --disable-pip --require-hashes -r ../agent-worker/requirements.lock
 
 Expected: both exit 0. If either reports a vulnerability, update the compatible direct constraint or regenerate with -Upgrade, rebuild, and rerun; do not add an ignore without documentation.
 
-- [ ] **Step 4: Validate workflow syntax and commit**
+- [x] **Step 4: Validate workflow syntax and commit**
 
 Parse the YAML, run both audit commands locally, then commit:
 
