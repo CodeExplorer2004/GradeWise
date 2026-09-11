@@ -87,5 +87,6 @@ export const tasksApi = {
   status: (taskId: string) => http.get<AgentTask>(`/tasks/${taskId}`),
   update: (taskId: string, message: string) =>
     http.post<AgentTask>(`/tasks/${taskId}/update`, { message }),
+  retry: (taskId: string) => http.post<AgentTask>(`/tasks/${taskId}/retry`),
   cancel: (taskId: string) => http.delete<AgentTask>(`/tasks/${taskId}`),
 }

@@ -216,11 +216,14 @@ button { cursor: pointer; }
 .task-history-select { grid-template-columns: auto minmax(0, 1fr); align-items: center; margin-top: 12px; }
 .task-update { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 9px; margin-top: 10px; }
 .task-status { padding: 6px 10px; color: #5f6f82; border-radius: 999px; background: #edf1f6; font-size: 12px; }
-.task-status.running, .task-status.pending { color: #235ca7; background: #e9f2ff; }
+.task-status.running, .task-status.queued { color: #235ca7; background: #e9f2ff; }
 .task-status.success { color: #177d62; background: #e7f7f1; }
-.task-status.error, .task-status.cancelled { color: #b93440; background: #fdecee; }
+.task-status.error, .task-status.cancelled, .task-status.interrupted { color: #b93440; background: #fdecee; }
+.task-stage-message { margin: 10px 0; padding: 10px 12px; border-radius: 10px; background: #eef5ff; color: #315f95; }
+.task-error { margin: 10px 0 0; padding: 10px 12px; border: 1px solid #f3c9cd; border-radius: 10px; background: #fff5f6; color: #a92f3a; }
+.task-retry { font-weight: 600; }
 .task-meta { margin-top: 14px; }
-.task-meta small { color: #8796a9; word-break: break-all; }
+.task-meta small { display: block; margin-top: 4px; color: #8796a9; word-break: break-all; }
 .task-meta pre { max-height: 360px; overflow: auto; margin: 12px 0 0; padding: 16px; color: #344b66; border: 1px solid #e2eaf5; border-radius: 10px; background: white; font: inherit; font-size: 13px; line-height: 1.7; white-space: pre-wrap; }
 .structured-task-result { max-height: 620px; overflow: auto; margin-top: 12px; padding: 18px; color: #42566e; border: 1px solid #e2eaf5; border-radius: 12px; background: white; }
 .structured-task-result h3 { margin: 18px 0 9px; color: var(--navy); font-size: 15px; }

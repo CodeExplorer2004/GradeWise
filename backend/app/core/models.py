@@ -11,8 +11,10 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
+    Text,
     UniqueConstraint,
     func,
 )
@@ -231,3 +233,48 @@ class ImportBatch(Base):
     rejected_rows: Mapped[int] = mapped_column(Integer, default=0)
     errors: Mapped[list[dict[str, str]]] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AgentTask(Base):
+    __tablename__ = "agent_tasks"
+    __mapper_args__ = {"eager_defaults": True}
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    school_id: Mapped[int] = mapped_column(ForeignKey("schools.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    task_type: Mapped[str] = mapped_column(String(32))
+    requested_scope: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
+    effective_scope: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
+    worker_thread_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    worker_run_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(20), default="queued", server_default="queued", index=True
+    )
+    stage: Mapped[str] = mapped_column(
+        String(32), default="collecting_evidence", server_default="collecting_evidence"
+    )
+    status_message: Mapped[str] = mapped_column(
+        String(255), default="正在准备任务", server_default="正在准备任务"
+    )
+    result: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result_prefix: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (
+        Index("ix_agent_tasks_user_created", "user_id", "created_at"),
+        CheckConstraint(
+            "task_type IN ('batch_report', 'batch_warning')",
+            name="ck_agent_tasks_type",
+        ),
+        CheckConstraint(
+            "status IN ('queued', 'running', 'success', 'error', 'cancelled', 'interrupted')",
+            name="ck_agent_tasks_status",
+        ),
+    )

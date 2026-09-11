@@ -100,24 +100,31 @@ async def test_batch_warning_passes_the_complete_validated_scope(monkeypatch) ->
         observed["filters"] = filters
         return []
 
-    async def fake_start(user_id, task_type, description, scope=None, result_prefix=None):
+    async def fake_create(*_args, **_kwargs):
+        return SimpleNamespace(id="task")
+
+    async def fake_submit(_session, _task, description, result_prefix=None):
         observed["description"] = json.loads(description)
         observed["result_prefix"] = result_prefix
         return AgentTaskResponse(
             task_id="task",
             run_id="run",
-            task_type=task_type,
-            status="pending",
-            scope=scope or {},
+            task_type="batch_warning",
+            status="running",
+            stage="agent_running",
+            status_message="Agent 正在生成报告",
+            scope=validated_scope,
+            requested_scope=validated_scope,
         )
 
     monkeypatch.setattr(task_api, "_validated_scope", fake_validate)
     monkeypatch.setattr(task_api, "collect_risk_predictions", fake_collect)
-    monkeypatch.setattr(task_api, "start_task", fake_start)
+    monkeypatch.setattr(task_api, "create_task_record", fake_create)
+    monkeypatch.setattr(task_api, "submit_task", fake_submit)
     user = SimpleNamespace(id=1, role=UserRole.ACADEMIC_ADMIN)
     payload = AgentTaskRequest(task_type="batch_warning", scope=validated_scope)
 
-    await task_api.create_agent_task(payload, user)
+    await task_api.create_agent_task(payload, user, AsyncMock())
 
     assert observed["filters"] == validated_scope
     assert observed["description"]["scope"] == validated_scope

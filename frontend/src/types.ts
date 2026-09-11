@@ -221,14 +221,35 @@ export interface ImportResult {
   errors: Array<{ row: number; reason: string }>
 }
 
+export type AgentTaskStatus = 'queued' | 'running' | 'success' | 'error' | 'cancelled' | 'interrupted'
+
+export type AgentTaskStage =
+  | 'collecting_evidence'
+  | 'submitting'
+  | 'agent_running'
+  | 'saving_result'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'interrupted'
+
 export interface AgentTask {
   task_id: string
-  run_id: string
+  run_id?: string | null
   task_type: 'batch_report' | 'batch_warning'
-  status: string
+  status: AgentTaskStatus
+  stage: AgentTaskStage
+  status_message: string
   result?: string | null
   scope: AgentTaskScope
+  requested_scope: AgentTaskScope
+  error_code?: string | null
+  attempt_count: number
+  can_retry: boolean
   created_at?: string | null
+  started_at?: string | null
+  finished_at?: string | null
+  updated_at?: string | null
 }
 
 export interface AgentTaskScope extends AnalysisScope {}

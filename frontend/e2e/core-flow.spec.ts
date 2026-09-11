@@ -4,6 +4,13 @@ test('网关公开存活与就绪检查', async ({ request }) => {
   const live = await request.get('/health/live')
   expect(live.ok()).toBeTruthy()
   expect(live.headers()['content-type']).toContain('application/json')
+  expect(live.headers()['x-content-type-options']).toBe('nosniff')
+  expect(live.headers()['x-frame-options']).toBe('DENY')
+  expect(live.headers()['referrer-policy']).toBe('no-referrer')
+  expect(live.headers()['permissions-policy']).toBe(
+    'camera=(), geolocation=(), microphone=(self)',
+  )
+  expect(live.headers()['content-security-policy']).toContain("default-src 'self'")
   expect(await live.json()).toEqual({ status: 'ok' })
 
   const ready = await request.get('/health/ready')
@@ -13,6 +20,17 @@ test('网关公开存活与就绪检查', async ({ request }) => {
     status: 'ok',
     checks: { database: 'ok', redis: 'ok' },
   })
+
+  const spa = await request.get('/')
+  expect(spa.ok()).toBeTruthy()
+  expect(spa.headers()['x-content-type-options']).toBe('nosniff')
+  expect(spa.headers()['x-frame-options']).toBe('DENY')
+  expect(spa.headers()['referrer-policy']).toBe('no-referrer')
+  expect(spa.headers()['permissions-policy']).toBe(
+    'camera=(), geolocation=(), microphone=(self)',
+  )
+  expect(spa.headers()['content-security-policy']).toContain("frame-ancestors 'none'")
+  expect(spa.headers().server).not.toMatch(/nginx\/\d/i)
 })
 
 test('教务登录后可完成问数并看到图表', async ({ page }) => {
@@ -37,7 +55,8 @@ test('教务登录后可完成问数并看到图表', async ({ page }) => {
   expect(payload.rows.length).toBeGreaterThan(0)
   expect(payload.chart.type).not.toBe('none')
 
-  await expect(page.getByText(/已返回 \d+ 条数据/)).toBeVisible()
-  await expect(page.locator('.inline-chart canvas')).toBeVisible()
-  await expect(page.locator('.result-table tbody tr').first()).toBeVisible()
+  const latestResult = page.locator('.message-row.assistant .message-card.has-results').last()
+  await expect(latestResult.getByText(/已返回 \d+ 条数据/)).toBeVisible()
+  await expect(latestResult.locator('.inline-chart canvas')).toBeVisible()
+  await expect(latestResult.locator('.result-table tbody tr').first()).toBeVisible()
 })

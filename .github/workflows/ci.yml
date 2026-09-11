@@ -58,9 +58,17 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: backend/pyproject.toml
-      - name: 安装后端依赖
-        run: python -m pip install -e ".[dev]"
+          cache-dependency-path: backend/requirements-dev.lock
+      - name: 按锁安装后端开发依赖
+        run: python -m pip install --require-hashes -r requirements-dev.lock
+      - name: 检查 Python 锁文件漂移
+        run: |
+          pwsh ../scripts/compile-python-locks.ps1 -PythonExecutable python
+          git diff --exit-code -- requirements.lock requirements-dev.lock ../agent-worker/requirements.lock
+      - name: 审计后端运行时依赖
+        run: python -m pip_audit --disable-pip --require-hashes -r requirements.lock
+      - name: 审计 Agent worker 运行时依赖
+        run: python -m pip_audit --disable-pip --require-hashes -r ../agent-worker/requirements.lock
       - name: Ruff 静态检查
         run: ruff check --no-cache app tests alembic
       - name: Agent worker 语法检查

@@ -99,6 +99,8 @@ def test_agent_task_models_keep_default_scope_for_existing_tasks() -> None:
         run_id="run-1",
         task_type="batch_report",
         status="success",
+        stage="completed",
+        status_message="任务已完成",
     )
 
     assert all(value is None for value in request.scope.model_dump().values())
