@@ -77,7 +77,7 @@ Run the script again without -Upgrade, then run git diff --exit-code on the thre
 - Agent worker image installs agent-worker/requirements.lock.
 - Application source remains copied into /app and no runtime resolver is invoked.
 
-- [ ] **Step 1: Change Docker install layers**
+- [x] **Step 1: Change Docker install layers**
 
 Copy pyproject.toml and requirements.lock together. Install with:
 
@@ -85,13 +85,13 @@ Copy pyproject.toml and requirements.lock together. Install with:
 
 Do not install the local project package because both images copy and execute source directly.
 
-- [ ] **Step 2: Build both images from a clean dependency layer**
+- [x] **Step 2: Build both images from a clean dependency layer**
 
     docker compose -p gradewise-hardening -f docker-compose.yml -f docker-compose.e2e.yml build backend agent-worker
 
 Expected: both builds succeed using only exact hash-verified dependencies.
 
-- [ ] **Step 3: Inspect representative runtime versions**
+- [x] **Step 3: Inspect representative runtime versions**
 
 Run pip freeze in each image and compare every package/version pair against its runtime lock. Expected: no missing or extra distributable dependencies apart from pip, setuptools, and wheel.
 

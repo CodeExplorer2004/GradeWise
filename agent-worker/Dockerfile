@@ -1,8 +1,10 @@
 FROM python:3.12-slim
 WORKDIR /app
-COPY pyproject.toml langgraph.json ./
+COPY pyproject.toml requirements.lock langgraph.json ./
 RUN --mount=type=cache,target=/root/.cache/pip \
-    mkdir -p app && touch app/__init__.py && pip install .
+    python -m pip install --timeout 120 --retries 10 "pip==26.2.1"
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install --timeout 120 --retries 10 --require-hashes -r requirements.lock
 COPY app ./app
 RUN useradd --create-home --uid 10002 agentuser && chown -R agentuser:agentuser /app
 USER agentuser
